@@ -91,7 +91,7 @@ if __name__ == "__main__":
                 fail_count += 1
             print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Waiting for 5 seconds before next transaction...', appearance.COLORSS.GRAY)}")
             print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            time.sleep(random.randint(1, 5))
+            time.sleep(10)
         # tampilkan succes count dan fail count
         print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text(f'Successful transactions: {success_count}', appearance.COLORSS.GREEN)}")
         print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Failed transactions: {fail_count}', appearance.COLORSS.RED)}")
@@ -121,7 +121,7 @@ if __name__ == "__main__":
                 fail_count += 1
             print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Waiting for 5 seconds before next transaction...', appearance.COLORSS.GRAY)}")
             print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            time.sleep(random.randint(1, 5))
+            time.sleep(10)
         # tampilkan succes count dan fail count
         print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text(f'Successful transactions: {success_count}', appearance.COLORSS.GREEN)}")
         print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Failed transactions: {fail_count}', appearance.COLORSS.RED)}")
@@ -191,7 +191,7 @@ if __name__ == "__main__":
                 fail_count += 1
             print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Waiting for 5 seconds before next transaction...', appearance.COLORSS.GRAY)}")
             print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            time.sleep(random.randint(1, 5))
+            time.sleep(10)
         # tampilkan succes count dan fail count
         print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text(f'Successful transactions: {success_count}', appearance.COLORSS.GREEN)}")
         print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Failed transactions: {fail_count}', appearance.COLORSS.RED)}")
