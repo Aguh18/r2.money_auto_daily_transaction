@@ -138,39 +138,44 @@ if __name__ == "__main__":
 
         
         
-        # kirim ulang usdc ke rusdc
-       
+        
         success_count = 0
         fail_count = 0
-        print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'Executing USDC to R2USD swap transaction {1} of 1 (Amount: {int(swap_total)-2}USDC)', appearance.COLORSS.YELLOW)}")
-        success = utils.swap_usdc_to_r2usd(w3, account, int(swap_total) - 2)
-        if success:
-            print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text(f'Swap transaction {i+1} completed successfully!', appearance.COLORSS.GREEN)}")
-            success_count += 1
-        else:
-            print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Swap transaction {i+1} failed. Continuing to next transaction.', appearance.COLORSS.RED)}")
-            fail_count += 1
-        print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Waiting for 5 seconds before next transaction...', appearance.COLORSS.GRAY)}")
-        
+        attempt = 1 
+
+        amount_to_swap = int(swap_total) - 2
+        print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'Executing USDC to R2USD swap transaction (Amount: {amount_to_swap} USDC)', appearance.COLORSS.YELLOW)}")
+
+        while True:
+            print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'Attempt {attempt}: Swapping {amount_to_swap} USDC...', appearance.COLORSS.YELLOW)}")
+            
+            success = utils.swap_usdc_to_r2usd(w3, account, amount_to_swap)
+            if success:
+                print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text(f'Swap transaction succeeded on attempt {attempt}!', appearance.COLORSS.GREEN)}")
+                success_count += 1
+                break
+            else:
+                print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Swap transaction attempt {attempt} failed. Retrying...', appearance.COLORSS.RED)}")
+                fail_count += 1
+                attempt += 1
+                time.sleep(5)  # Tunggu 5 detik sebelum mencoba lagi
+
+        print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Waiting for 5 seconds before proceeding...', appearance.COLORSS.GRAY)}")
+        time.sleep(5)
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        # disini send telegram amountnya karena hanya sekali transaksi
-        if success_count > 0:
-            message = (
+
+        # Kirim notifikasi telegram
+        message = (
             "<b>✅ Swap USDC to R2USD Completed</b>\n"
-            f"<b>💸 Amount Sent:</b> {int(swap_total) - 2} USDC\n"
+            f"<b>💸 Amount Sent:</b> {amount_to_swap} USDC\n"
+            f"<b>🔁 Attempts:</b> {attempt}\n"
             "Transaction has been processed successfully."
         )
-        else:
-            message = (
-            "<b>❌ Swap USDC to R2USD Failed</b>\n"
-            f"<b>💸 Amount Sent:</b> {int(swap_total) - 2} USDC\n"
-            "Transaction has failed."
-        )
-
         utils.send_telegram_message(message, parse_mode="HTML")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-        
+
+                
     # Loop untuk menjalankan transaksi staking R2USD
     
         success_count = 0
