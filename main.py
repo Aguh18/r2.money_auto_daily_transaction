@@ -16,9 +16,9 @@ if __name__ == "__main__":
   
     PRIVATE_KEY = os.getenv("PRIVATE_KEY")
     swap_total= os.getenv("USDC_SPENDING_AMOUNT")
-    swap_count = 1
+    swap_count = 150
     swap_amount = int(swap_total) / swap_count
-    stake_count = 1
+    stake_count = 12
     stake_amount = (int(swap_total)-10) / stake_count 
     is_loop = False
     
