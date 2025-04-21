@@ -1,24 +1,21 @@
-import re
-from web3 import Web3
-import asyncio
-from web3 import AsyncWeb3
-import data
-from eth_account import Account
-import appearance 
-import requests
-from web3.exceptions import ContractLogicError
+# Standard library imports
 import os
+import re
 import time
+import random
 from datetime import datetime, timedelta
 
-from datetime import datetime, timedelta
-import time
-import random
+
+# Third-party imports
+import asyncio
+import requests
+from eth_account import Account
+from web3 import AsyncWeb3, Web3
+from web3.exceptions import ContractLogicError, TransactionNotFound
+
+# Local imports
 import appearance
-from datetime import datetime, timedelta
-import time
-import random
-import appearance
+import data
 
 def wait_until_next_day():
     now = datetime.now()
@@ -96,7 +93,63 @@ def check_token_balance(w3, wallet_address, token_address):
         print(f"{appearance.EMOJI['ERROR']}  {appearance.color_text(f'Failed to check balance for token {token_address}: {e}', appearance.COLORS['RED'])}")
         return 0
 
+
 def approve_token(w3, account, token_address, spender_address, amount):
+    try:
+        checksum_token = w3.to_checksum_address(token_address)
+        checksum_spender = w3.to_checksum_address(spender_address)
+        token_contract = w3.eth.contract(address=checksum_token, abi=data.ERC20_ABI)
+        decimals = token_contract.functions.decimals().call()
+        amount_wei = int(amount * (10 ** decimals))
+        current_allowance = token_contract.functions.allowance(account.address, checksum_spender).call()
+        
+        if current_allowance >= amount_wei:
+            print(f"{appearance.EMOJIS.INFO} {appearance.color_text('Sufficient allowance already exists', appearance.COLORSS.GRAY)}")
+            return True
+        
+        print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'Approving {amount} tokens for spending...', appearance.COLORSS.YELLOW)}")
+        
+        # Transaction parameters
+        base_gas_price = w3.eth.gas_price
+        max_retries = 3
+        retry_delay = 30  # seconds
+        gas_multiplier = 2  # Increase gas price by 20% each retry
+        
+        for attempt in range(max_retries):
+            gas_price = int(base_gas_price * (gas_multiplier ** attempt))
+            tx = token_contract.functions.approve(checksum_spender, amount_wei).build_transaction({
+                'from': account.address,
+                'gas': 100000,
+                'nonce': w3.eth.get_transaction_count(account.address),
+                'gasPrice': gas_price,
+                'chainId': data.SEPOLIA_CHAIN_ID
+            })
+            signed_tx = account.sign_transaction(tx)
+            tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Approval transaction sent (attempt {attempt + 1}): {tx_hash.hex()}', appearance.COLORSS.WHITE)}")
+            print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Check on Sepolia Explorer: https://sepolia.etherscan.io/tx/{tx_hash.hex()}', appearance.COLORSS.GRAY)}")
+            
+            # Wait for confirmation with timeout
+            start_time = time.time()
+            while time.time() - start_time < retry_delay:
+                try:
+                    receipt = w3.eth.get_transaction_receipt(tx_hash)
+                    if receipt:
+                        if receipt.status == 0:
+                            raise Exception("Approval transaction failed")
+                        print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text('Approval confirmed', appearance.COLORSS.GREEN)}")
+                        return True
+                except TransactionNotFound:
+                    pass
+                time.sleep(5)  # Check every 5 seconds
+            
+            print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Transaction not confirmed after {retry_delay} seconds, increasing gas price...', appearance.COLORSS.YELLOW)}")
+        
+        raise Exception(f"Approval transaction not confirmed after {max_retries} attempts")
+    
+    except Exception as e:
+        print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Failed to approve token: {e}', appearance.COLORSS.RED)}")
+        return False
     try:
         checksum_token = w3.to_checksum_address(token_address)
         checksum_spender = w3.to_checksum_address(spender_address)
