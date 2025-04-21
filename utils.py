@@ -66,9 +66,9 @@ def send_telegram_message(message, parse_mode="Markdown"):
         if response.status_code == 200:
             print("Telegram notification sent to private chat")
         else:
-            print("Failed to send Telegram notification:", response.json())
+            print("Failed to send Telegram notification:")
     except Exception as e:
-        print("Error sending Telegram notification:", str(e))
+        print("Failed to send Telegram notification")
 
 def is_valid_private_key(key):
     clean_key = key[2:] if key.startswith('0x') else key
