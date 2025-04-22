@@ -113,7 +113,7 @@ def approve_token(w3, account, token_address, spender_address, amount):
         base_gas_price = w3.eth.gas_price
         max_retries = 3
         retry_delay = 30  # seconds
-        gas_multiplier = 2  # Increase gas price by 20% each retry
+        gas_multiplier = 1.2  # Increase gas price by 20% each retry
         
         for attempt in range(max_retries):
             gas_price = int(base_gas_price * (gas_multiplier ** attempt))
