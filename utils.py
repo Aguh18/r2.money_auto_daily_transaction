@@ -95,9 +95,11 @@ def check_token_balance(w3, wallet_address, token_address):
 
 def approve_token(w3, account, token_address, spender_address, amount):
     try:
+    
         # Konversi alamat ke checksum
         checksum_token = w3.to_checksum_address(token_address)
         checksum_spender = w3.to_checksum_address(spender_address)
+      
         
         # Inisialisasi kontrak token
         token_contract = w3.eth.contract(address=checksum_token, abi=data.ERC20_ABI)
@@ -109,177 +111,29 @@ def approve_token(w3, account, token_address, spender_address, amount):
         if current_allowance >= amount_wei:
             print(f"{appearance.EMOJIS.INFO} {appearance.color_text('Sufficient allowance already exists', appearance.COLORSS.GRAY)}")
             return True
-        
-        print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'Approving {amount} tokens for spending...', appearance.COLORSS.YELLOW)}")
-        
-        # Parameter transaksi
-        base_gas_price = w3.eth.gas_price
-        max_retries = 3
-        gas_multiplier = 1.2  # Tingkatkan gas price sebesar 20% setiap retry
-        
-        for attempt in range(max_retries):
-            try:
-                # Hitung gas price untuk percobaan ini
-                gas_price = int(base_gas_price * (gas_multiplier ** attempt))
-                
-                # Bangun transaksi
-                tx = token_contract.functions.approve(checksum_spender, amount_wei).build_transaction({
-                    'from': account.address,
-                    'gas': 150000,  # Gas limit ditingkatkan untuk keamanan
-                    'nonce': w3.eth.get_transaction_count(account.address),
-                    'gasPrice': gas_price,
-                    'chainId': data.SEPOLIA_CHAIN_ID
-                })
-                
-                # Tanda tangani dan kirim transaksi
-                signed_tx = account.sign_transaction(tx)
-                tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-                print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Approval transaction sent (attempt {attempt + 1}): {tx_hash.hex()}', appearance.COLORSS.WHITE)}")
-                print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Check on Sepolia Explorer: https://sepolia.etherscan.io/tx/{tx_hash.hex()}', appearance.COLORSS.GRAY)}")
-                
-                # Tunggu konfirmasi tanpa batas waktu
-                print(f"{appearance.EMOJIS.LOADING} {appearance.color_text('Waiting for transaction confirmation...', appearance.COLORSS.YELLOW)}")
-                while True:
-                    try:
-                        receipt = w3.eth.get_transaction_receipt(tx_hash)
-                        if receipt:
-                            if receipt.status == 0:
-                                raise Exception("Approval transaction failed (reverted)")
-                            print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text('Approval confirmed', appearance.COLORSS.GREEN)}")
-                            return True
-                    except TransactionNotFound:
-                        # Transaksi masih tertunda, lanjutkan menunggu
-                        print(f"{appearance.EMOJIS.LOADING} {appearance.color_text('Transaction still pending, continuing to wait...', appearance.COLORSS.YELLOW)}")
-                    except Exception as e:
-                        # Tangani error lain, tetapi lanjutkan menunggu
-                        print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Error while checking transaction: {e}, continuing to wait...', appearance.COLORSS.YELLOW)}")
-                    time.sleep(15)  # Cek setiap 15 detik untuk efisiensi
-            
-            except Exception as e:
-                print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Attempt {attempt + 1} failed: {e}, retrying with higher gas price...', appearance.COLORSS.YELLOW)}")
-                if attempt == max_retries - 1:
-                    # Setelah max_retries, lanjutkan menunggu transaksi terakhir tanpa gagal
-                    print(f"{appearance.EMOJIS.LOADING} {appearance.color_text('Max retries reached, continuing to wait for last transaction...', appearance.COLORSS.YELLOW)}")
-                    while True:
-                        try:
-                            receipt = w3.eth.get_transaction_receipt(tx_hash)
-                            if receipt:
-                                if receipt.status == 0:
-                                    print(f"{appearance.EMOJIS.ERROR} {appearance.color_text('Approval transaction failed (reverted)', appearance.COLORSS.RED)}")
-                                    return False
-                                print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text('Approval confirmed', appearance.COLORSS.GREEN)}")
-                                return True
-                        except TransactionNotFound:
-                            print(f"{appearance.EMOJIS.LOADING} {appearance.color_text('Transaction still pending, continuing to wait...', appearance.COLORSS.YELLOW)}")
-                        except Exception as e:
-                            print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Error while checking transaction: {e}, continuing to wait...', appearance.COLORSS.YELLOW)}")
-                        time.sleep(15)
-    
     except Exception as e:
-        # Hanya gagal jika ada error kritis sebelum atau saat mengirim transaksi
-        print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Critical error in approve_token: {e}', appearance.COLORSS.RED)}")
-        return False
-    try:
-        checksum_token = w3.to_checksum_address(token_address)
-        checksum_spender = w3.to_checksum_address(spender_address)
-        token_contract = w3.eth.contract(address=checksum_token, abi=data.ERC20_ABI)
-        decimals = token_contract.functions.decimals().call()
-        amount_wei = int(amount * (10 ** decimals))
-        current_allowance = token_contract.functions.allowance(account.address, checksum_spender).call()
-        
-        if current_allowance >= amount_wei:
-            print(f"{appearance.EMOJIS.INFO} {appearance.color_text('Sufficient allowance already exists', appearance.COLORSS.GRAY)}")
-            return True
-        
-        print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'Approving {amount} tokens for spending...', appearance.COLORSS.YELLOW)}")
-        
-        # Transaction parameters
-        base_gas_price = w3.eth.gas_price
-        max_retries = 3
-        retry_delay = 30  # seconds
-        gas_multiplier = 1.2  # Increase gas price by 20% each retry
-        
-        for attempt in range(max_retries):
-            gas_price = int(base_gas_price * (gas_multiplier ** attempt))
-            tx = token_contract.functions.approve(checksum_spender, amount_wei).build_transaction({
-                'from': account.address,
-                'gas': 100000,
-                'nonce': w3.eth.get_transaction_count(account.address),
-                'gasPrice': gas_price,
-                'chainId': data.SEPOLIA_CHAIN_ID
-            })
-            signed_tx = account.sign_transaction(tx)
-            tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-            print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Approval transaction sent (attempt {attempt + 1}): {tx_hash.hex()}', appearance.COLORSS.WHITE)}")
-            print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Check on Sepolia Explorer: https://sepolia.etherscan.io/tx/{tx_hash.hex()}', appearance.COLORSS.GRAY)}")
-            
-            # Wait for confirmation with timeout
-            start_time = time.time()
-            while time.time() - start_time < retry_delay:
-                try:
-                    receipt = w3.eth.get_transaction_receipt(tx_hash)
-                    if receipt:
-                        if receipt.status == 0:
-                            raise Exception("Approval transaction failed")
-                        print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text('Approval confirmed', appearance.COLORSS.GREEN)}")
-                        return True
-                except TransactionNotFound:
-                    pass
-                time.sleep(5)  # Check every 5 seconds
-            
-            print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Transaction not confirmed after {retry_delay} seconds, increasing gas price...', appearance.COLORSS.YELLOW)}")
-        
-        raise Exception(f"Approval transaction not confirmed after {max_retries} attempts")
-    
-    except Exception as e:
-        print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Failed to approve token: {e}', appearance.COLORSS.RED)}")
-        return False
-    try:
-        checksum_token = w3.to_checksum_address(token_address)
-        checksum_spender = w3.to_checksum_address(spender_address)
-        token_contract = w3.eth.contract(address=checksum_token, abi=data.ERC20_ABI)
-        decimals = token_contract.functions.decimals().call()
-        amount_wei = int(amount * (10 ** decimals))
-        current_allowance = token_contract.functions.allowance(account.address, checksum_spender).call()
-        
-        if current_allowance >= amount_wei:
-            print(f"{appearance.EMOJIS.INFO} {appearance.color_text('Sufficient allowance already exists', appearance.COLORSS.GRAY)}")
-            return True
-        
-        print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'Approving {amount} tokens for spending...', appearance.COLORSS.YELLOW)}")
-        tx = token_contract.functions.approve(checksum_spender, amount_wei).build_transaction({
-            'from': account.address,
-            'gas': 100000,
-            'nonce': w3.eth.get_transaction_count(account.address),
-            'gasPrice': w3.eth.gas_price,
-            'chainId': data.SEPOLIA_CHAIN_ID
-        })
-        signed_tx = account.sign_transaction(tx)
-        tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-        print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Approval transaction sent: {tx_hash.hex()}', appearance.COLORSS.WHITE)}")
-        print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Check on Sepolia Explorer: https://sepolia.etherscan.io/tx/{tx_hash.hex()}', appearance.COLORSS.GRAY)}")
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        if receipt.status == 0:
-            raise Exception("Approval transaction failed")
-        print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text('Approval confirmed', appearance.COLORSS.GREEN)}")
-        return True
-    except Exception as e:
-        print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Failed to approve token: {e}', appearance.COLORSS.RED)}")
+        print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Failed to check allowance: {e}', appearance.COLORSS.RED)}")
         return False
     
+        
+        
 # Fungsi untuk swap USDC ke R2USD
+
 def swap_usdc_to_r2usd(w3, account, amount):
     try:
-        
+        # Periksa saldo USDC
         usdc_balance = check_token_balance(w3, account.address, data.USDC_ADDRESS)
         print(f"{appearance.EMOJIS.MONEY} {appearance.color_text(f'Current USDC balance: {usdc_balance:.6f}', appearance.COLORSS.WHITE)}")
         if usdc_balance < amount:
             print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Insufficient USDC balance. You have {usdc_balance:.6f} USDC but trying to swap {amount} USDC.', appearance.COLORSS.RED)}")
             return False
         
-        if not approve_token(w3, account, data.USDC_ADDRESS, data.USDC_TO_R2USD_CONTRACT , amount):
+        # Pastikan approval token
+        if not approve_token(w3, account, data.USDC_ADDRESS, data.USDC_TO_R2USD_CONTRACT, amount):
+            print(f"{appearance.EMOJIS.ERROR} {appearance.color_text('Failed to approve USDC for swap', appearance.COLORSS.RED)}")
             return False
         
+        # Siapkan kontrak dan data transaksi
         checksum_contract = w3.to_checksum_address(data.USDC_TO_R2USD_CONTRACT)
         token_contract = w3.eth.contract(address=w3.to_checksum_address(data.USDC_ADDRESS), abi=data.ERC20_ABI)
         decimals = token_contract.functions.decimals().call()
@@ -292,12 +146,24 @@ def swap_usdc_to_r2usd(w3, account, amount):
             '0' * 64 * 5  # Placeholder untuk parameter lain
         )
         
+        # Periksa gas price hingga cukup rendah
+        MAX_GAS_PRICE_WEI = 10_000_000_000  # 0.00000001 ETH
+        while True:
+            gas_price = w3.eth.gas_price
+            print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Current gas price: {gas_price} wei ({gas_price / 10**18:.12f} ETH)', appearance.COLORSS.GRAY)}")
+            if gas_price > MAX_GAS_PRICE_WEI:
+                print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Gas price too high: {gas_price / 10**18:.12f} ETH is above maximum 0.00000001 ETH. Waiting for lower gas price...', appearance.COLORSS.YELLOW)}")
+                time.sleep(15)  # Tunggu 15 detik sebelum cek ulang
+                continue
+            break  # Gas price cukup rendah, lanjutkan
+        
+        # Lanjutkan pembuatan transaksi
         print(f"{appearance.EMOJIS.SWAP} {appearance.color_text(f'Swapping {amount} USDC to R2USD...', appearance.COLORSS.YELLOW)}")
         tx = {
             'to': checksum_contract,
-            'data':dat,
+            'data': dat,
             'gas': 500000,
-            'gasPrice': w3.eth.gas_price,
+            'gasPrice': gas_price,
             'nonce': w3.eth.get_transaction_count(account.address),
             'chainId': data.SEPOLIA_CHAIN_ID
         }
@@ -305,16 +171,31 @@ def swap_usdc_to_r2usd(w3, account, amount):
         tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
         print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Transaction sent: {tx_hash.hex()}', appearance.COLORSS.WHITE)}")
         print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Check on Sepolia Explorer: https://sepolia.etherscan.io/tx/{tx_hash.hex()}', appearance.COLORSS.GRAY)}")
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        if receipt.status == 0:
-            raise Exception("Swap transaction failed")
         
+        # Tunggu konfirmasi tanpa batas waktu
+        description = "Swap USDC to R2USD"
+        print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'Waiting for {description} confirmation...', appearance.COLORSS.YELLOW)}")
+        while True:
+            try:
+                receipt = w3.eth.get_transaction_receipt(tx_hash)
+                if receipt:
+                    if receipt.status == 0:
+                        raise Exception(f"{description} failed (reverted)")
+                    break  # Keluar dari loop jika dikonfirmasi
+            except TransactionNotFound:
+                print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'{description} still pending, continuing to wait...', appearance.COLORSS.YELLOW)}")
+            except Exception as e:
+                print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Error while checking {description}: {e}, continuing to wait...', appearance.COLORSS.YELLOW)}")
+            time.sleep(15)  # Cek setiap 15 detik
+        
+        # Log hasil setelah konfirmasi
         print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text('Swap confirmed!', appearance.COLORSS.GREEN)}")
         new_usdc_balance = check_token_balance(w3, account.address, data.USDC_ADDRESS)
-        new_r2usd_balance = check_token_balance(w3, account.address, data.R2USD_ADDRESS)  
+        new_r2usd_balance = check_token_balance(w3, account.address, data.R2USD_ADDRESS)
         print(f"{appearance.EMOJIS.MONEY} {appearance.color_text(f'New USDC balance: {new_usdc_balance:.6f}', appearance.COLORSS.WHITE)}")
         print(f"{appearance.EMOJIS.MONEY} {appearance.color_text(f'New R2USD balance: {new_r2usd_balance:.6f}', appearance.COLORSS.WHITE)}")
         return True
+    
     except Exception as e:
         print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Failed to swap USDC to R2USD: {e}', appearance.COLORSS.RED)}")
         return False
@@ -337,6 +218,17 @@ def swap_r2usd_to_usdc(w3, account, amount):
         amount_wei = int(amount * (10 ** decimals))
         min_output = int(amount_wei * 0.97)  # 97% dari jumlah input
         
+            # Periksa gas price hingga cukup rendah
+        MAX_GAS_PRICE_WEI = 10_000_000_000  # 0.00000001 ETH
+        while True:
+            gas_price = w3.eth.gas_price
+            print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Current gas price: {gas_price} wei ({gas_price / 10**18:.12f} ETH)', appearance.COLORSS.GRAY)}")
+            if gas_price > MAX_GAS_PRICE_WEI:
+                print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Gas price too high: {gas_price / 10**18:.12f} ETH is above maximum 0.00000001 ETH. Waiting for lower gas price...', appearance.COLORSS.YELLOW)}")
+                time.sleep(15)  # Tunggu 15 detik sebelum cek ulang
+                continue
+            break  # Gas price cukup rendah, lanjutkan
+        
         print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Swapping {amount} R2USD, expecting at least {min_output / (10 ** decimals):.6f} USDC', appearance.COLORSS.GRAY)}")
         dat = (
             data.R2USD_TO_USDC_METHOD_ID +
@@ -351,7 +243,7 @@ def swap_r2usd_to_usdc(w3, account, amount):
             'to': w3.to_checksum_address(data.R2USD_TO_USDC_CONTRACT),
             'data': dat,
             'gas': 500000,
-            'gasPrice': w3.eth.gas_price,
+            'gasPrice': gas_price,
             'nonce': w3.eth.get_transaction_count(account.address),
             'chainId': data.SEPOLIA_CHAIN_ID
         }
@@ -411,6 +303,16 @@ def stake_r2usd(w3, account, amount):
             w3.to_bytes(amount_wei).rjust(32, b'\0').hex() +
             '0' * 576  # Padding seperti di JavaScript
         )
+            # Periksa gas price hingga cukup rendah
+        MAX_GAS_PRICE_WEI = 10_000_000_000  # 0.00000001 ETH
+        while True:
+            gas_price = w3.eth.gas_price
+            print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Current gas price: {gas_price} wei ({gas_price / 10**18:.12f} ETH)', appearance.COLORSS.GRAY)}")
+            if gas_price > MAX_GAS_PRICE_WEI:
+                print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Gas price too high: {gas_price / 10**18:.12f} ETH is above maximum 0.00000001 ETH. Waiting for lower gas price...', appearance.COLORSS.YELLOW)}")
+                time.sleep(15)  # Tunggu 15 detik sebelum cek ulang
+                continue
+            break  # Gas price cukup rendah, lanjutkan
         
         print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Executing stake of {amount} R2USD...', appearance.COLORSS.YELLOW)}")
         print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Prepared tx_data: {tx_data}', appearance.COLORSS.GRAY)}")
@@ -423,7 +325,7 @@ def stake_r2usd(w3, account, amount):
             'to': w3.to_checksum_address(data.STAKE_R2USD_CONTRACT),
             'data': tx_data,
             'gas': int(gas_estimate * 1.2),
-            'gasPrice': w3.eth.gas_price,
+            'gasPrice': gas_price,
             'nonce': w3.eth.get_transaction_count(account.address, 'pending'),
             'chainId': data.SEPOLIA_CHAIN_ID
         }
