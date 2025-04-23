@@ -200,25 +200,27 @@ def swap_usdc_to_r2usd(w3, account, amount):
         print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Failed to swap USDC to R2USD: {e}', appearance.COLORSS.RED)}")
         return False
     
-    
-# Fungsi untuk swap R2USD ke USDC
 def swap_r2usd_to_usdc(w3, account, amount):
     try:
-        r2usd_balance = check_token_balance(w3, account.address, data.R2USD_ADDRESS )
+        # Periksa saldo R2USD
+        r2usd_balance = check_token_balance(w3, account.address, data.R2USD_ADDRESS)
         print(f"{appearance.EMOJIS.MONEY} {appearance.color_text(f'Current R2USD balance: {r2usd_balance:.6f}', appearance.COLORSS.WHITE)}")
         if r2usd_balance < amount:
             print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Insufficient R2USD balance. You have {r2usd_balance:.6f} R2USD but trying to swap {amount} R2USD.', appearance.COLORSS.RED)}")
             return False
         
-        if not  approve_token(w3, account, data.R2USD_ADDRESS, data.R2USD_TO_USDC_CONTRACT , amount):
+        # Pastikan approval token
+        if not approve_token(w3, account, data.R2USD_ADDRESS, data.R2USD_TO_USDC_CONTRACT, amount):
+            print(f"{appearance.EMOJIS.ERROR} {appearance.color_text('Failed to approve R2USD for swap', appearance.COLORSS.RED)}")
             return False
         
+        # Siapkan kontrak dan data transaksi
         token_contract = w3.eth.contract(address=w3.to_checksum_address(data.R2USD_ADDRESS), abi=data.ERC20_ABI)
         decimals = token_contract.functions.decimals().call()
         amount_wei = int(amount * (10 ** decimals))
         min_output = int(amount_wei * 0.97)  # 97% dari jumlah input
         
-            # Periksa gas price hingga cukup rendah
+        # Periksa gas price hingga cukup rendah
         MAX_GAS_PRICE_WEI = 10_000_000_000  # 0.00000001 ETH
         while True:
             gas_price = w3.eth.gas_price
@@ -229,6 +231,7 @@ def swap_r2usd_to_usdc(w3, account, amount):
                 continue
             break  # Gas price cukup rendah, lanjutkan
         
+        # Siapkan data transaksi
         print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Swapping {amount} R2USD, expecting at least {min_output / (10 ** decimals):.6f} USDC', appearance.COLORSS.GRAY)}")
         dat = (
             data.R2USD_TO_USDC_METHOD_ID +
@@ -238,6 +241,7 @@ def swap_r2usd_to_usdc(w3, account, amount):
             w3.to_bytes(min_output).rjust(32, b'\0').hex()
         )
         
+        # Lanjutkan pembuatan transaksi
         print(f"{appearance.EMOJIS.SWAP} {appearance.color_text(f'Swapping {amount} R2USD to USDC...', appearance.COLORSS.YELLOW)}")
         tx = {
             'to': w3.to_checksum_address(data.R2USD_TO_USDC_CONTRACT),
@@ -251,24 +255,36 @@ def swap_r2usd_to_usdc(w3, account, amount):
         tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
         print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Transaction sent: {tx_hash.hex()}', appearance.COLORSS.WHITE)}")
         print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Check on Sepolia Explorer: https://sepolia.etherscan.io/tx/{tx_hash.hex()}', appearance.COLORSS.GRAY)}")
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        if receipt.status == 0:
-            raise Exception("Swap transaction failed")
         
+        # Tunggu konfirmasi tanpa batas waktu
+        description = "Swap R2USD to USDC"
+        print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'Waiting for {description} confirmation...', appearance.COLORSS.YELLOW)}")
+        while True:
+            try:
+                receipt = w3.eth.get_transaction_receipt(tx_hash)
+                if receipt:
+                    if receipt.status == 0:
+                        raise Exception(f"{description} failed (reverted)")
+                    break  # Keluar dari loop jika dikonfirmasi
+            except TransactionNotFound:
+                print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'{description} still pending, continuing to wait...', appearance.COLORSS.YELLOW)}")
+            except Exception as e:
+                print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Error while checking {description}: {e}, continuing to wait...', appearance.COLORSS.YELLOW)}")
+            time.sleep(15)  # Cek setiap 15 detik
+        
+        # Log hasil setelah konfirmasi
         print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text('Swap confirmed!', appearance.COLORSS.GREEN)}")
         new_usdc_balance = check_token_balance(w3, account.address, data.USDC_ADDRESS)
-        new_r2usd_balance = check_token_balance(w3, account.address, data.R2USD_ADDRESS)  
+        new_r2usd_balance = check_token_balance(w3, account.address, data.R2USD_ADDRESS)
         print(f"{appearance.EMOJIS.MONEY} {appearance.color_text(f'New USDC balance: {new_usdc_balance:.6f}', appearance.COLORSS.WHITE)}")
         print(f"{appearance.EMOJIS.MONEY} {appearance.color_text(f'New R2USD balance: {new_r2usd_balance:.6f}', appearance.COLORSS.WHITE)}")
         return True
+    
     except Exception as e:
         print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Failed to swap R2USD to USDC: {e}', appearance.COLORSS.RED)}")
         return False
-
-
+    
 # Fungsi untuk stake R2USD
-
-
 
 def stake_r2usd(w3, account, amount):
     try:
@@ -284,26 +300,32 @@ def stake_r2usd(w3, account, amount):
         contract_code = w3.eth.get_code(w3.to_checksum_address(data.STAKE_R2USD_CONTRACT))
         print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Staking contract code length: {len(contract_code)} bytes', appearance.COLORSS.GRAY)}")
 
+        # Periksa saldo R2USD
         r2usd_balance = check_token_balance(w3, account.address, data.R2USD_ADDRESS)
         print(f"{appearance.EMOJIS.MONEY} {appearance.color_text(f'Current R2USD balance: {r2usd_balance:.6f}', appearance.COLORSS.WHITE)}")
         if r2usd_balance < amount:
             print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Insufficient R2USD balance. You have {r2usd_balance:.6f} R2USD but trying to stake {amount} R2USD.', appearance.COLORSS.RED)}")
             return False
         
+        # Pastikan approval token
         if not approve_token(w3, account, data.R2USD_ADDRESS, data.STAKE_R2USD_CONTRACT, amount):
+            print(f"{appearance.EMOJIS.ERROR} {appearance.color_text('Failed to approve R2USD for staking', appearance.COLORSS.RED)}")
             return False
         
+        # Siapkan kontrak dan data transaksi
         token_contract = w3.eth.contract(address=w3.to_checksum_address(data.R2USD_ADDRESS), abi=data.ERC20_ABI)
         decimals = token_contract.functions.decimals().call()
         amount_wei = int(amount * (10 ** decimals))
         
+        # Siapkan data transaksi
         print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Staking {amount} R2USD...', appearance.COLORSS.GRAY)}")
         tx_data = (
             data.STAKE_R2USD_METHOD_ID +
             w3.to_bytes(amount_wei).rjust(32, b'\0').hex() +
             '0' * 576  # Padding seperti di JavaScript
         )
-            # Periksa gas price hingga cukup rendah
+        
+        # Periksa gas price hingga cukup rendah
         MAX_GAS_PRICE_WEI = 10_000_000_000  # 0.00000001 ETH
         while True:
             gas_price = w3.eth.gas_price
@@ -314,6 +336,7 @@ def stake_r2usd(w3, account, amount):
                 continue
             break  # Gas price cukup rendah, lanjutkan
         
+        # Lanjutkan pembuatan transaksi
         print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Executing stake of {amount} R2USD...', appearance.COLORSS.YELLOW)}")
         print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Prepared tx_data: {tx_data}', appearance.COLORSS.GRAY)}")
         gas_estimate = w3.eth.estimate_gas({
@@ -333,16 +356,31 @@ def stake_r2usd(w3, account, amount):
         tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
         print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Transaction sent: {tx_hash.hex()}', appearance.COLORSS.WHITE)}")
         print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Check on Sepolia Explorer: https://sepolia.etherscan.io/tx/{tx_hash.hex()}', appearance.COLORSS.GRAY)}")
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        if receipt.status == 0:
-            raise Exception("Stake transaction failed")
         
+        # Tunggu konfirmasi tanpa batas waktu
+        description = "Stake R2USD"
+        print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'Waiting for {description} confirmation...', appearance.COLORSS.YELLOW)}")
+        while True:
+            try:
+                receipt = w3.eth.get_transaction_receipt(tx_hash)
+                if receipt:
+                    if receipt.status == 0:
+                        raise Exception(f"{description} failed (reverted)")
+                    break  # Keluar dari loop jika dikonfirmasi
+            except TransactionNotFound:
+                print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'{description} still pending, continuing to wait...', appearance.COLORSS.YELLOW)}")
+            except Exception as e:
+                print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Error while checking {description}: {e}, continuing to wait...', appearance.COLORSS.YELLOW)}")
+            time.sleep(15)  # Cek setiap 15 detik
+        
+        # Log hasil setelah konfirmasi
         print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text('Stake confirmed!', appearance.COLORSS.GREEN)}")
         new_r2usd_balance = check_token_balance(w3, account.address, data.R2USD_ADDRESS)
         new_sr2usd_balance = check_token_balance(w3, account.address, data.SR2USD_ADDRESS)
         print(f"{appearance.EMOJIS.MONEY} {appearance.color_text(f'New R2USD balance: {new_r2usd_balance:.6f}', appearance.COLORSS.WHITE)}")
         print(f"{appearance.EMOJIS.MONEY} {appearance.color_text(f'New sR2USD balance: {new_sr2usd_balance:.6f}', appearance.COLORSS.WHITE)}")
         return True
+    
     except ValueError as ve:
         print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Invalid input or contract error: {ve}', appearance.COLORSS.RED)}")
         return False
@@ -352,5 +390,4 @@ def stake_r2usd(w3, account, amount):
     except Exception as e:
         print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Unexpected error: {e}', appearance.COLORSS.RED)}")
         return False
-
     
