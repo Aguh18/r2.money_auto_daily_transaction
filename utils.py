@@ -93,8 +93,92 @@ def check_token_balance(w3, wallet_address, token_address):
         print(f"{appearance.EMOJI['ERROR']}  {appearance.color_text(f'Failed to check balance for token {token_address}: {e}', appearance.COLORS['RED'])}")
         return 0
 
-
 def approve_token(w3, account, token_address, spender_address, amount):
+    try:
+        # Konversi alamat ke checksum
+        checksum_token = w3.to_checksum_address(token_address)
+        checksum_spender = w3.to_checksum_address(spender_address)
+        
+        # Inisialisasi kontrak token
+        token_contract = w3.eth.contract(address=checksum_token, abi=data.ERC20_ABI)
+        decimals = token_contract.functions.decimals().call()
+        amount_wei = int(amount * (10 ** decimals))
+        
+        # Periksa allowance saat ini
+        current_allowance = token_contract.functions.allowance(account.address, checksum_spender).call()
+        if current_allowance >= amount_wei:
+            print(f"{appearance.EMOJIS.INFO} {appearance.color_text('Sufficient allowance already exists', appearance.COLORSS.GRAY)}")
+            return True
+        
+        print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'Approving {amount} tokens for spending...', appearance.COLORSS.YELLOW)}")
+        
+        # Parameter transaksi
+        base_gas_price = w3.eth.gas_price
+        max_retries = 3
+        gas_multiplier = 1.2  # Tingkatkan gas price sebesar 20% setiap retry
+        
+        for attempt in range(max_retries):
+            try:
+                # Hitung gas price untuk percobaan ini
+                gas_price = int(base_gas_price * (gas_multiplier ** attempt))
+                
+                # Bangun transaksi
+                tx = token_contract.functions.approve(checksum_spender, amount_wei).build_transaction({
+                    'from': account.address,
+                    'gas': 150000,  # Gas limit ditingkatkan untuk keamanan
+                    'nonce': w3.eth.get_transaction_count(account.address),
+                    'gasPrice': gas_price,
+                    'chainId': data.SEPOLIA_CHAIN_ID
+                })
+                
+                # Tanda tangani dan kirim transaksi
+                signed_tx = account.sign_transaction(tx)
+                tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+                print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Approval transaction sent (attempt {attempt + 1}): {tx_hash.hex()}', appearance.COLORSS.WHITE)}")
+                print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Check on Sepolia Explorer: https://sepolia.etherscan.io/tx/{tx_hash.hex()}', appearance.COLORSS.GRAY)}")
+                
+                # Tunggu konfirmasi tanpa batas waktu
+                print(f"{appearance.EMOJIS.LOADING} {appearance.color_text('Waiting for transaction confirmation...', appearance.COLORSS.YELLOW)}")
+                while True:
+                    try:
+                        receipt = w3.eth.get_transaction_receipt(tx_hash)
+                        if receipt:
+                            if receipt.status == 0:
+                                raise Exception("Approval transaction failed (reverted)")
+                            print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text('Approval confirmed', appearance.COLORSS.GREEN)}")
+                            return True
+                    except TransactionNotFound:
+                        # Transaksi masih tertunda, lanjutkan menunggu
+                        print(f"{appearance.EMOJIS.LOADING} {appearance.color_text('Transaction still pending, continuing to wait...', appearance.COLORSS.YELLOW)}")
+                    except Exception as e:
+                        # Tangani error lain, tetapi lanjutkan menunggu
+                        print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Error while checking transaction: {e}, continuing to wait...', appearance.COLORSS.YELLOW)}")
+                    time.sleep(15)  # Cek setiap 15 detik untuk efisiensi
+            
+            except Exception as e:
+                print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Attempt {attempt + 1} failed: {e}, retrying with higher gas price...', appearance.COLORSS.YELLOW)}")
+                if attempt == max_retries - 1:
+                    # Setelah max_retries, lanjutkan menunggu transaksi terakhir tanpa gagal
+                    print(f"{appearance.EMOJIS.LOADING} {appearance.color_text('Max retries reached, continuing to wait for last transaction...', appearance.COLORSS.YELLOW)}")
+                    while True:
+                        try:
+                            receipt = w3.eth.get_transaction_receipt(tx_hash)
+                            if receipt:
+                                if receipt.status == 0:
+                                    print(f"{appearance.EMOJIS.ERROR} {appearance.color_text('Approval transaction failed (reverted)', appearance.COLORSS.RED)}")
+                                    return False
+                                print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text('Approval confirmed', appearance.COLORSS.GREEN)}")
+                                return True
+                        except TransactionNotFound:
+                            print(f"{appearance.EMOJIS.LOADING} {appearance.color_text('Transaction still pending, continuing to wait...', appearance.COLORSS.YELLOW)}")
+                        except Exception as e:
+                            print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Error while checking transaction: {e}, continuing to wait...', appearance.COLORSS.YELLOW)}")
+                        time.sleep(15)
+    
+    except Exception as e:
+        # Hanya gagal jika ada error kritis sebelum atau saat mengirim transaksi
+        print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Critical error in approve_token: {e}', appearance.COLORSS.RED)}")
+        return False
     try:
         checksum_token = w3.to_checksum_address(token_address)
         checksum_spender = w3.to_checksum_address(spender_address)
