@@ -147,7 +147,7 @@ def swap_usdc_to_r2usd(w3, account, amount):
         )
         
         # Periksa gas price hingga cukup rendah
-        MAX_GAS_PRICE_WEI = 3_000_000_000  # 0.00000001 ETH
+        MAX_GAS_PRICE_WEI = 12_000_000_000  # 0.00000001 ETH
         while True:
             gas_price = w3.eth.gas_price
             print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Current gas price: {gas_price} wei ({gas_price / 10**18:.12f} ETH)', appearance.COLORSS.GRAY)}")
@@ -231,7 +231,7 @@ def swap_r2usd_to_usdc(w3, account, amount):
         min_output = int(amount_wei * 0.97)  # 97% dari jumlah input
         
         # Periksa gas price hingga cukup rendah
-        MAX_GAS_PRICE_WEI = 3_000_000_000  # 0.00000001 ETH
+        MAX_GAS_PRICE_WEI = 12_000_000_000  # 0.00000001 ETH
         while True:
             gas_price = w3.eth.gas_price
             print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Current gas price: {gas_price} wei ({gas_price / 10**18:.12f} ETH)', appearance.COLORSS.GRAY)}")
@@ -347,7 +347,7 @@ def stake_r2usd(w3, account, amount):
         )
         
         # Periksa gas price hingga cukup rendah
-        MAX_GAS_PRICE_WEI = 3_000_000_000  # 0.00000001 ETH
+        MAX_GAS_PRICE_WEI = 12_000_000_000  # 0.00000001 ETH
         while True:
             gas_price = w3.eth.gas_price
             print(f"{appearance.EMOJIS.INFO} {appearance.color_text(f'Current gas price: {gas_price} wei ({gas_price / 10**18:.12f} ETH)', appearance.COLORSS.GRAY)}")
