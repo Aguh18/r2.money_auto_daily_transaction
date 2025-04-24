@@ -175,18 +175,28 @@ def swap_usdc_to_r2usd(w3, account, amount):
         # Tunggu konfirmasi tanpa batas waktu
         description = "Swap USDC to R2USD"
         print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'Waiting for {description} confirmation...', appearance.COLORSS.YELLOW)}")
-        while True:
+        
+        is_success = False
+        retries_count= 0
+        max_retries = 5
+        while retries_count < max_retries:
+            retries_count += 1
             try:
                 receipt = w3.eth.get_transaction_receipt(tx_hash)
                 if receipt:
                     if receipt.status == 0:
                         raise Exception(f"{description} failed (reverted)")
+                    is_success = True
                     break  # Keluar dari loop jika dikonfirmasi
             except TransactionNotFound:
                 print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'{description} still pending, continuing to wait...', appearance.COLORSS.YELLOW)}")
             except Exception as e:
                 print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Error while checking {description}: {e}, continuing to wait...', appearance.COLORSS.YELLOW)}")
             time.sleep(15)  # Cek setiap 15 detik
+            
+        if not is_success:
+            print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'{description} failed after {max_retries} retries', appearance.COLORSS.RED)}")
+            return False
         
         # Log hasil setelah konfirmasi
         print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text('Swap confirmed!', appearance.COLORSS.GREEN)}")
@@ -259,18 +269,29 @@ def swap_r2usd_to_usdc(w3, account, amount):
         # Tunggu konfirmasi tanpa batas waktu
         description = "Swap R2USD to USDC"
         print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'Waiting for {description} confirmation...', appearance.COLORSS.YELLOW)}")
-        while True:
+        
+        # ulaingi 5 kali
+        is_success = False
+        rertry_count = 0
+        max_retries = 5
+        while rertry_count < max_retries:
+            rertry_count += 1
             try:
                 receipt = w3.eth.get_transaction_receipt(tx_hash)
                 if receipt:
                     if receipt.status == 0:
                         raise Exception(f"{description} failed (reverted)")
+                    is_success = True
                     break  # Keluar dari loop jika dikonfirmasi
             except TransactionNotFound:
                 print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'{description} still pending, continuing to wait...', appearance.COLORSS.YELLOW)}")
             except Exception as e:
                 print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Error while checking {description}: {e}, continuing to wait...', appearance.COLORSS.YELLOW)}")
             time.sleep(15)  # Cek setiap 15 detik
+        
+        if not is_success:
+            print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'{description} failed after {max_retries} retries', appearance.COLORSS.RED)}")
+            return False
         
         # Log hasil setelah konfirmasi
         print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text('Swap confirmed!', appearance.COLORSS.GREEN)}")
@@ -360,18 +381,28 @@ def stake_r2usd(w3, account, amount):
         # Tunggu konfirmasi tanpa batas waktu
         description = "Stake R2USD"
         print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'Waiting for {description} confirmation...', appearance.COLORSS.YELLOW)}")
-        while True:
+        max_retries = 5
+        retry_count = 0
+        is_success = False
+        while retry_count < max_retries:
+            
+            retry_count += 1
             try:
                 receipt = w3.eth.get_transaction_receipt(tx_hash)
                 if receipt:
                     if receipt.status == 0:
                         raise Exception(f"{description} failed (reverted)")
+                    is_success = True
                     break  # Keluar dari loop jika dikonfirmasi
             except TransactionNotFound:
                 print(f"{appearance.EMOJIS.LOADING} {appearance.color_text(f'{description} still pending, continuing to wait...', appearance.COLORSS.YELLOW)}")
             except Exception as e:
                 print(f"{appearance.EMOJIS.WARNING} {appearance.color_text(f'Error while checking {description}: {e}, continuing to wait...', appearance.COLORSS.YELLOW)}")
             time.sleep(15)  # Cek setiap 15 detik
+        if not is_success:
+            print(f"{appearance.EMOJIS.ERROR} {appearance.color_text(f'Failed to confirm transaction after {max_retries} retries.', appearance.COLORSS.RED)}")
+            return False
+        
         
         # Log hasil setelah konfirmasi
         print(f"{appearance.EMOJIS.SUCCESS} {appearance.color_text('Stake confirmed!', appearance.COLORSS.GREEN)}")
